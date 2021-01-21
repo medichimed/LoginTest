@@ -5,10 +5,6 @@
 //  Created by Oksana Kotilevska on 20.01.2021.
 //
 
-/*    "email": "junior-ios-developer@mailinator.com",
- "password": "s4m8AJDbVvX4H8aF",
-*/
-
 import Combine
 import UIKit
 
@@ -19,15 +15,21 @@ class LoginViewController: UIViewController {
     @IBOutlet weak var passwordTextField: UITextField!
 
     @IBOutlet weak var signInButton: RoundedCornerButton!
+
+    //MARK: - Properties
+    private var firstCancellable: AnyCancellable?
+    private var secondCancellable: AnyCancellable?
     //MARK: - Lifecycle
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        setSubscriptions()
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(true, animated: true)
+        disableLoginButton()
         tabBarController?.tabBar.isHidden = true
     }
 
@@ -63,17 +65,42 @@ class LoginViewController: UIViewController {
         let email = emailTextField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let password = passwordTextField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
-        guard !email.isEmpty && !password.isEmpty else {
-            AlertService.popUpInformAlert(withTitle: "Error", withMessage: "Fill out all fields", on: self)
-            return(nil, nil)
-        }
-
         guard Validator.isValidEmail(emailTextField.text) else {
-            AlertService.popUpInformAlert(withTitle: "Error", withMessage: "Invalid email", on: self)
+            AlertService.popUpInformAlert(withTitle: "Error", withMessage: "Invalid input", on: self)
+            clearTextFields()
+            disableLoginButton()
             return(nil, nil)
         }
 
         return(email, password)
+    }
+
+    private func setSubscriptions() {
+        firstCancellable = NotificationCenter.default.publisher(for: UITextField.textDidChangeNotification, object: passwordTextField)
+            .map{$0.object as? UITextField}
+            .compactMap{$0?.text}
+            .map{ str -> Bool in
+                if self.emailTextField.text!.isEmpty {
+                    self.signInButton.alpha = 0.5
+                } else {
+                    self.signInButton.alpha = 1.0
+                }
+                return !self.emailTextField.text!.isEmpty
+            }
+            .assign(to: \.isEnabled, on: signInButton)
+
+        secondCancellable = NotificationCenter.default.publisher(for: UITextField.textDidChangeNotification, object: emailTextField)
+            .map{$0.object as? UITextField}
+            .compactMap{$0?.text}
+            .map{ str -> Bool in
+                if self.passwordTextField.text!.isEmpty {
+                    self.signInButton.alpha = 0.5
+                } else {
+                    self.signInButton.alpha = 1.0
+                }
+                return !self.passwordTextField.text!.isEmpty
+            }
+            .assign(to: \.isEnabled, on: signInButton)
     }
 
     private func clearTextFields() {
@@ -81,6 +108,11 @@ class LoginViewController: UIViewController {
         passwordTextField.text = ""
         emailTextField.resignFirstResponder()
         passwordTextField.resignFirstResponder()
+    }
+
+    private func disableLoginButton() {
+        signInButton.alpha = 0.5
+        signInButton.isEnabled = false
     }
 
 }
